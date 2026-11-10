@@ -62,28 +62,92 @@ revisar, no para el modelo).
 
 ---
 
-## 4. Relaciones del modelo
+## 4. Relaciones del modelo (paso a paso)
 
-En la vista **Modelo**, arrastra de la tabla de hechos a la dimensión. Todas son
-**varios a uno** y en **una sola dirección**.
+### 4.1 Primero se borran todas
 
-| Desde | Hacia |
+Power BI creó relaciones automáticamente al cargar. Algunas pueden estar mal (por ejemplo,
+entre las dos tablas de hechos) o inactivas. Para no adivinar, se borran todas y se crean
+las 7 a mano.
+
+1. En la cinta de opciones, pestaña **Inicio** → **Administrar relaciones**.
+2. En la ventana aparece la lista de relaciones existentes.
+3. Seleccionar una → **Eliminar**. Repetir hasta que la lista quede vacía.
+4. **Cerrar**.
+
+### 4.2 Se crean las 7, una por una
+
+En la misma ventana **Administrar relaciones** → **Nueva**:
+
+- Tabla 1: la tabla de hechos, con su columna.
+- Tabla 2: la dimensión, con su columna.
+- Cardinalidad: **Varios a uno (*:1)**.
+- Dirección del filtro cruzado: **Única**.
+- **Aceptar**.
+
+| # | Tabla 1 (hecho) | Columna | Tabla 2 (dimensión) | Columna |
+|---:|---|---|---|---|
+| 1 | `hecho_pedidos` | `cliente_id` | `dim_cliente` | `cliente_id` |
+| 2 | `hecho_pedidos` | `fecha_compra` | `dim_tiempo` | `fecha` |
+| 3 | `hecho_pedidos` | `estado_entrega_id` | `dim_estado_entrega` | `estado_entrega_id` |
+| 4 | `hecho_items` | `producto_id` | `dim_producto` | `producto_id` |
+| 5 | `hecho_items` | `cliente_id` | `dim_cliente` | `cliente_id` |
+| 6 | `hecho_items` | `fecha_compra` | `dim_tiempo` | `fecha` |
+| 7 | `hecho_items` | `estado_entrega_id` | `dim_estado_entrega` | `estado_entrega_id` |
+
+**No se crea ninguna relación entre `hecho_pedidos` y `hecho_items`.** Power BI puede
+sugerirla por `pedido_id`; hay que rechazarla.
+
+### 4.3 Cómo debe quedar cada relación
+
+Al hacer doble clic sobre una línea del diagrama se abre **Editar relación**. Debe decir:
+
+| Campo | Valor |
 |---|---|
-| `hecho_pedidos[cliente_id]` | `dim_cliente[cliente_id]` |
-| `hecho_pedidos[fecha_compra]` | `dim_tiempo[fecha]` |
-| `hecho_pedidos[estado_entrega_id]` | `dim_estado_entrega[estado_entrega_id]` |
-| `hecho_items[producto_id]` | `dim_producto[producto_id]` |
-| `hecho_items[cliente_id]` | `dim_cliente[cliente_id]` |
-| `hecho_items[fecha_compra]` | `dim_tiempo[fecha]` |
-| `hecho_items[estado_entrega_id]` | `dim_estado_entrega[estado_entrega_id]` |
+| Cardinalidad | **Varios a uno (*:1)** |
+| Dirección del filtro cruzado | **Única** |
+| Activa esta relación | **Marcada** |
+| Asumir integridad referencial | Desmarcada |
 
-Dos cosas importantes:
+Si una línea se ve **punteada**, está inactiva: se abre, se marca “Activa” y se acepta.
+Las 7 tienen que quedar como líneas **sólidas**.
 
-1. **No crear relación entre `hecho_pedidos` y `hecho_items`.** Power BI puede sugerirla
-   por `pedido_id`; hay que borrarla. Si se une, un filtro de producto llegaría a los
-   pedidos y el OTIF se pondría a contar productos.
-2. **Marcar `dim_tiempo` como tabla de fechas**: seleccionar la tabla → Herramientas de
-   tabla → **Marcar como tabla de fechas** → columna `fecha`.
+### 4.4 Distribución del diagrama
+
+En la vista **Modelo**, arrastrar las tablas hasta que queden así (las dimensiones
+alrededor, los hechos al centro):
+
+```
+                    dim_tiempo
+                        │
+   dim_cliente ── hecho_pedidos ── dim_producto
+                        │
+                   hecho_items
+                        │
+                dim_estado_entrega
+```
+
+Con esa distribución las 7 líneas se ven sin cruzarse y se detecta de un vistazo si falta
+alguna.
+
+### 4.5 Apagar la autodetección
+
+Para que Power BI no vuelva a crear la relación entre los dos hechos al actualizar:
+
+**Archivo → Opciones y configuración → Opciones → Archivo actual → Carga de datos** →
+desmarcar **“Detectar nuevas relaciones automáticamente después de cargar los datos”**.
+
+### 4.6 Marcar el calendario como tabla de fechas
+
+Clic derecho sobre `dim_tiempo` → **Marcar como tabla de fechas** → columna `fecha`.
+Aparece un ícono de calendario junto al nombre. Sin esto, las funciones de tiempo
+(acumulados, año anterior) no funcionan bien.
+
+### 4.7 Verificación
+
+En la vista **Modelo** deben verse **7 líneas sólidas**, cada una con un **1** del lado de
+la dimensión y un **\*** del lado del hecho, y la flecha apuntando hacia el hecho. Si hay
+8 líneas o alguna punteada, algo quedó mal.
 
 Opcional: ocultar en la vista de informe las columnas de códigos (`*_id`) para que el
 panel de campos quede limpio.
