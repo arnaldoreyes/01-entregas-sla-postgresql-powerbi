@@ -98,20 +98,26 @@ Otras limitaciones se documentan en [`docs/diccionario-datos.md`](docs/diccionar
 
 ## Cómo reproducirlo
 
-Requisitos: PostgreSQL 18 con `psql` en el `PATH`, y los 9 CSV de Olist en
-`01_raw/entrada/`.
+Requisitos: PostgreSQL 18 con pgAdmin 4, y los 9 CSV de Olist en `01_raw/entrada/`
+(no están en Git por tamaño: se descargan de Kaggle; ver `01_raw/sources.md`).
+
+**Paso 1 — crear la base.** En pgAdmin, conéctate al servidor y abre Query Tool sobre la
+base `postgres`. Ejecuta `01_raw/01_crear_base.sql`.
+
+**Paso 2 — crear las tablas.** Abre Query Tool sobre la base `entregas` (la que creó el
+paso 1) y ejecuta `01_raw/02_crear_tablas.sql`.
+
+**Paso 3 — cargar los datos.** Este paso se hace con `psql`, no con pgAdmin: pgAdmin le
+ordena al servidor, y el servidor corre con una cuenta de Windows que no puede leer tus
+Documentos. `psql` sí lee el archivo desde tu sesión. Desde la carpeta del proyecto:
 
 ```powershell
-# 1. Crear la base y cargar
-& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -f 01_raw\01_crear_base.sql
-
-# 2. Construir staging y modelo (en orden)
-& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d entregas -f 02_staging\01_vistas.sql
-& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d entregas -f 03_modeling\01_estrella.sql
-
-# 3. Verificar el cuadre
-& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d entregas -f 05_validation\01_cuadre.sql
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d entregas -W -f 01_raw\03_cargar.sql
 ```
+
+Al terminar, el script verifica los 8 conteos y la suma de precios (13.591.643,70). Las
+fases 2 y 3 agregan `02_staging/`, `03_modeling/` y `05_validation/` con el mismo esquema
+de pasos.
 
 Los hashes SHA-256 de los CSV están en [`01_raw/sources.md`](01_raw/sources.md).
 

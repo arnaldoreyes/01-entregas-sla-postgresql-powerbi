@@ -1,211 +1,118 @@
 # Guía de la fase 01 — Ingesta (`01_raw`)
 
-**Proyecto 1 · Entregas y SLA (Olist)**
-**Qué queda en esta fase:** los scripts de creación y carga, y este documento. Nada de
-limpieza ni de modelo todavía: eso es `02_staging` y `03_modeling`.
+**Proyecto 1 · Entregas y SLA (datos de Olist)**
+Esta guía explica qué se hace en esta fase, cómo ejecutarlo en pgAdmin y por qué cada
+decisión está tomada así. Está escrita para que la entienda alguien que nunca ha tocado
+PostgreSQL, no solo un analista.
 
 ---
 
-## 0. Resumen
+## 0. La idea en una frase
 
-Se cargan **8 de los 9 CSV** en un esquema `olist` con **8 tablas**: 550.759 filas en
-total. El noveno archivo (geolocalización, 1.000.163 filas) se descarta a propósito
-(§4). La carga no transforma nada: es una copia fiel del CSV con tipos y restricciones,
-para poder auditar cualquier número contra el archivo original.
-
-| Tabla | Filas | Origen |
-|---|---:|---|
-| `olist.clientes` | 99.441 | `olist_customers_dataset.csv` |
-| `olist.pedidos` | 99.441 | `olist_orders_dataset.csv` |
-| `olist.productos` | 32.951 | `olist_products_dataset.csv` |
-| `olist.vendedores` | 3.095 | `olist_sellers_dataset.csv` |
-| `olist.categoria_traduccion` | 71 | `product_category_name_translation.csv` |
-| `olist.items_pedido` | 112.650 | `olist_order_items_dataset.csv` |
-| `olist.pagos_pedido` | 103.886 | `olist_order_payments_dataset.csv` |
-| `olist.resenas` | 99.224 | `olist_order_reviews_dataset.csv` |
-| **Total** | **550.759** | |
-
-Los 9 SHA-256 de `01_raw/entrada/` coinciden con `sources.md` (verificado antes de cargar).
+Los 9 archivos CSV de Olist se meten en una base de datos PostgreSQL llamada `entregas`,
+en 8 tablas, sin cambiarles nada: tal como vienen. Son **550.759 filas**. El noveno
+archivo (geolocalización) se deja fuera a propósito, y más abajo se explica por qué.
 
 ---
 
-## 1. Qué se hizo
+## 1. Qué se hace: tres pasos
 
-1. `01_raw/01_crear_base.sql` — borra y crea la base `entregas` (UTF-8), el esquema
-   `olist`, las 8 tablas, PK, FK, CHECK e índices.
-2. `01_raw/02_cargar.sql` — vacía las tablas y carga los 8 CSV con `\copy`. Al final
-   **verifica conteos y la suma de precios**; si algo no cuadra, aborta con excepción.
-3. `01_raw/sources.md` — corregido el conteo de reseñas (ver §3.1).
-4. `docs/guia-fase-01.md` — este documento.
+| Paso | Archivo | ¿En qué base? | ¿Con qué? |
+|---|---|---|---|
+| 1 | `01_crear_base.sql` | `postgres` (la que viene de fábrica) | pgAdmin → Query Tool |
+| 2 | `02_crear_tablas.sql` | `entregas` (la que crea el paso 1) | pgAdmin → Query Tool |
+| 3 | `03_cargar.sql` | `entregas` | psql (ver §3) |
 
-Los dos scripts se probaron contra una instancia PostgreSQL 18 temporal antes de
-entregarlos: corren de punta a punta, y el segundo se puede re-ejecutar sin recrear la
-base.
+Cada paso hace una sola cosa. Si algo falla, se sabe exactamente en cuál fue.
 
 ---
 
-## 2. Las decisiones, una por una
+## 2. Cómo ejecutar los pasos 1 y 2 en pgAdmin
 
-### 2.1 Una tabla por archivo, sin transformar
+### Antes de empezar
 
-La capa `01_raw` debe parecerse al origen. Si se limpia aquí, se pierde la referencia
-contra la que se audita el resto del proyecto. La limpieza (fechas a `date`, deduplicar
-reseñas, traducir categorías) va en `02_staging`, donde queda documentada.
+Los 8 CSV tienen que estar en la carpeta `01_raw/entrada/`. No están en Git porque pesan
+120 MB; se descargan de Kaggle (ver `sources.md`). Los hashes ya fueron verificados.
 
-### 2.2 Nombres en español, CSV en inglés
+### Paso 1 — crear la base
 
-Las columnas de la tabla están en español (`pedido_id`, `fecha_compra`) y el CSV en
-inglés (`order_id`, `order_purchase_timestamp`). El puente es la **lista de columnas del
-`\copy` + `HEADER true`**: PostgreSQL descarta la primera línea y carga por posición. No
-se renombra el CSV ni se depende de que los nombres coincidan.
+1. Abre **pgAdmin 4** y conéctate: doble clic en el servidor (aparece como
+   `PostgreSQL 18` o el nombre que le hayas puesto). Te pide la contraseña.
+2. En el árbol de la izquierda, busca **Databases** (Bases de datos) y haz **clic
+   derecho sobre `postgres`** → **Query Tool**.
+3. En la ventana que se abre, haz clic en el ícono de **carpeta (Open File)** y elige
+   `01_raw/01_crear_base.sql`.
+4. Pulsa el botón **▶ (Execute/Refresh)** o la tecla **F5**.
+5. Abajo, en **Data Output**, debe aparecer:
+   `Listo: la base entregas existe y está vacía. Sigue con el paso 2.`
+6. Refresca el árbol: clic derecho sobre **Databases** → **Refresh**. Ahora ves
+   `entregas`.
 
-### 2.3 Tipos
+> Si aparece el error `CREATE DATABASE cannot run inside a transaction block`, activa
+> el **autocommit** (el ícono de un rayo, junto al botón de ejecutar) y vuelve a correr
+> el archivo.
 
-| Dato | Tipo | Por qué |
-|---|---|---|
-| IDs (`order_id`, `product_id`…) | `text` | Son cadenas hex de 32 caracteres sin guiones: no son `uuid` válidos. `text` no impone longitud ni rellena con espacios. |
-| CEP / código postal | `text` | Puede tener ceros a la izquierda y aquí no se usa para unir. |
-| Fechas | `timestamp` (sin zona) | La fuente no trae offset. Usar `timestamptz` obligaría a inventar una zona; se hará explícito en staging si hace falta. |
-| Dinero (`precio`, `flete`, `valor`) | `numeric(12,2)` | Exacto. `real`/`double` redondean y descuadran totales. |
-| `item_id`, `pago_secuencial`, `cuotas`, `calificacion` | `smallint` | Rangos medidos: 1–21, 1–29, 0–24, 1–5. |
-| `estado` (UF) | `varchar(2)` | `char(2)` rellena con espacios y confunde las comparaciones. |
-| Peso y dimensiones | `integer` | Gramos y centímetros; nulos permitidos. |
+### Paso 2 — crear las tablas
 
-### 2.4 Claves primarias: las naturales, no inventadas
+1. Clic derecho sobre la base **`entregas`** → **Query Tool**.
+2. Abre `01_raw/02_crear_tablas.sql` con el ícono de carpeta.
+3. **F5**.
+4. Al final debe aparecer una lista con **8 tablas**: `categoria_traduccion`,
+   `clientes`, `items_pedido`, `pagos_pedido`, `pedidos`, `productos`, `resenas`,
+   `vendedores`.
 
-- `clientes(cliente_id)`, `pedidos(pedido_id)`, `productos(producto_id)`,
-  `vendedores(vendedor_id)`, `categoria_traduccion(categoria)`.
-- `items_pedido(pedido_id, item_id)`: el grano es el ítem.
-- `pagos_pedido(pedido_id, pago_secuencial)`: un pedido puede tener varios pagos.
-- `resenas(resena_id, pedido_id)`: **ninguna columna sola es única**. `review_id` se
-  repite en pedidos distintos y `pedido_id` se repite cuando hay 2–3 reseñas.
-
-No se agregan claves subrogadas (`id serial`) en raw: no aportan y esconden el problema
-de granularidad que hay que entender.
-
-### 2.5 Claves foráneas: sí, y en orden de dependencias
-
-Se cargan primero clientes, productos y vendedores; después pedidos; después ítems,
-pagos y reseñas. Las 7 FK se crean en el DDL y se validan al insertar. Si un pedido
-tuviera un `customer_id` inexistente, la carga falla: es lo que se quiere.
-
-**Excepción:** `productos.categoria` **no** tiene FK a `categoria_traduccion`. Hay 73
-categorías en productos y 71 traducciones: `pc_gamer` y
-`portateis_cozinha_e_preparadores_de_alimentos` no están traducidas. Una FK obligaría a
-inventar una fila o a borrar productos. Se resuelve en staging con `COALESCE`.
-
-### 2.6 CHECK: que el dato no entre mal
-
-- `estado_pedido` ∈ los 8 estados medidos.
-- `calificacion` entre 1 y 5.
-- Precio, flete, valor, cuotas, ítem y secuencia de pago ≥ 0 (o ≥ 1 donde corresponde).
-- Peso y dimensiones ≥ 0 (el 0 existe y es un dato inválido que se reporta, no se borra).
-
-### 2.7 Nulos: vacío es `NULL`, nunca `0`
-
-En CSV, un campo vacío **sin comillas** entra como `NULL`. Eso es clave en
-`fecha_entrega_cliente` (2.965 pedidos): un pedido sin entrega no tardó 0 días, no tiene
-días de tránsito. Lo mismo con `fecha_aprobacion` (160) y
-`fecha_entrega_transportista` (1.783).
-
-Las columnas que se dejaron `NOT NULL` son las que no tienen un solo vacío en el
-archivo (se midió columna por columna). Las que sí tienen van sin `NOT NULL`.
-
-### 2.8 Encoding, BOM y comillas
-
-- **UTF-8**: los 9 archivos son UTF-8 válido (se validó byte a byte). La base se crea en
-  UTF-8 con locale `C` para evitar el choque típico de Windows entre `UTF8` y una locale
-  de sistema.
-- **BOM**: `product_category_name_translation.csv` empieza con `EF BB BF`. PostgreSQL
-  **no lo elimina**: medido, el primer campo llega como `U+FEFF` (código 65279). Por eso
-  ese archivo se carga sin `HEADER` en una tabla temporal y se limpia con
-  `replace(categoria, chr(65279), '')`.
-- **Comillas y saltos de línea**: el archivo de reseñas tiene **104.720 líneas físicas
-  para 99.224 registros**: 5.495 saltos de línea dentro de comentarios entre comillas.
-  Un `COPY` en modo texto rompería; `FORMAT csv` los respeta. Es la razón técnica por la
-  que la carga es CSV y no texto plano.
+Las tablas quedan vacías: los datos entran en el paso 3.
 
 ---
 
-## 3. Las trampas, con el número medido
+## 3. Paso 3 — cargar los datos (la única parte que no es con clics)
 
-Todos los números de esta tabla salen de la base ya cargada, no de una lectura previa.
+**Por qué no se puede en pgAdmin:** cuando escribes algo en Query Tool, pgAdmin se lo
+manda al *servidor* de PostgreSQL, y el servidor corre en Windows con otra cuenta
+(`NetworkService`) que **no puede leer tu carpeta de Documentos**. El comando que carga
+archivos desde tu propio computador se llama `\copy` y lo ejecuta `psql`, una herramienta
+de PostgreSQL que corre en tu sesión, con tus permisos.
 
-### 3.1 Reseñas: 99.224, no 104.719
+**Cómo se hace:**
 
-| Dato | Valor |
-|---|---:|
-| Registros (filas reales) | **99.224** |
-| Líneas físicas del archivo | 104.720 (incluye encabezado) |
-| Pedidos con reseña | 98.673 |
-| `review_id` distintos | 98.410 |
-| Pedidos con 2 o 3 reseñas | 547 |
-| `review_id` repetidos en pedidos distintos | 789 |
+1. Abre **PowerShell** en la carpeta del proyecto. La forma fácil: abre la carpeta
+   `01-entregas-sla-postgresql-powerbi` en el Explorador de Windows, haz **clic derecho
+   en un espacio vacío** → **Abrir en Terminal** (o "Abrir ventana de PowerShell aquí").
+2. Pega esta línea y pulsa Enter:
 
-El número 104.719 que circulaba era el **conteo de líneas** (104.720 − encabezado), no
-de filas. La confusión es típica: `wc -l` cuenta líneas, no registros CSV.
-
-### 3.2 Las demás
-
-| Trampa | Medido | Decisión |
-|---|---:|---|
-| Pedidos sin fecha de entrega | 2.965 | `NULL`, no 0 |
-| … de esos, marcados `delivered` | 8 | Se documentan; no se imputan |
-| Pedidos con ítems | 98.666 | — |
-| Pedidos **sin** ítems | **775** | No se pueden medir en ingreso; se reportan |
-| Pedidos fuera del universo (`canceled`+`unavailable`) | 1.234 | Se excluyen del denominador, no de la tabla |
-| Clientes únicos (`customer_unique_id`) | 96.096 | No confundir con 99.441 `cliente_id` |
-| Productos sin categoría | 610 | `NULL`, se muestra "sin categoría" |
-| Productos sin peso / con peso 0 | 2 / 4 | Se excluyen del flete por kg |
-| Categorías sin traducción | 2 | `COALESCE` con el nombre en portugués |
-| Pedidos con pago | 99.440 | 1 pedido sin fila de pago |
-| Suma de pagos | 16.008.872,12 | No coincide con ítems: mide otra cosa |
-| Suma de ítems (precio + flete) | 15.843.553,24 | El ingreso del README |
-
-**Sobre pagos vs. ítems:** `pagos_pedido` tiene 103.886 filas para 99.440 pedidos y suma
-16.008.872,12; `items_pedido` suma 15.843.553,24. No es un error de carga: el pago
-incluye flete y cupones y puede repartirse en varias filas. **Nunca se suman las dos
-tablas en la misma consulta**: multiplicaría filas (fan-out).
-
----
-
-## 4. Qué se descartó y por qué
-
-1. **`olist_geolocation_dataset.csv` (1.000.163 filas, 19.015 CEP).** No entra al
-   modelo. La dimensión geográfica se arma con `estado` del cliente, que ya está en
-   `clientes`. Cargarla sumaría un millón de filas sin cambiar ninguna conclusión de SLA.
-2. **FK de `productos.categoria` a la traducción.** Fallaría con 2 categorías. Se
-   resuelve con `COALESCE` en staging.
-3. **`timestamptz`.** La fuente no trae zona horaria; asignarla sería inventar.
-4. **`uuid` para los IDs.** Los valores no tienen el formato UUID (32 hex sin guiones).
-5. **Cargar todo como `text` y castear después.** Se pierde la validación temprana: un
-   precio con coma decimal o una fecha rara entrarían sin avisar.
-6. **Tablas temporales para “CSV con más columnas que la tabla”.** Se midió: ninguno de
-   los 9 archivos trae más columnas que su tabla (5, 8, 7, 5, 7, 9, 4, 2 y 5 campos, y
-   todos los registros tienen exactamente esa cantidad). La única temporal que se usa es
-   la de categorías, por el BOM y para validar el conteo antes de insertar.
-7. **`COPY` en modo texto.** Los saltos de línea dentro de comillas lo romperían.
-
----
-
-## 5. Números de control
-
-Estos son los valores que debe devolver la base después de correr los dos scripts. El
-propio `02_cargar.sql` los verifica y aborta si no coinciden.
-
-```sql
-SELECT 'clientes' AS tabla, count(*) FROM olist.clientes
-UNION ALL SELECT 'pedidos', count(*) FROM olist.pedidos
-UNION ALL SELECT 'productos', count(*) FROM olist.productos
-UNION ALL SELECT 'vendedores', count(*) FROM olist.vendedores
-UNION ALL SELECT 'categoria_traduccion', count(*) FROM olist.categoria_traduccion
-UNION ALL SELECT 'items_pedido', count(*) FROM olist.items_pedido
-UNION ALL SELECT 'pagos_pedido', count(*) FROM olist.pagos_pedido
-UNION ALL SELECT 'resenas', count(*) FROM olist.resenas
-ORDER BY 1;
+```powershell
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d entregas -W -f 01_raw\03_cargar.sql
 ```
 
-| Control | Esperado |
+3. Te pide la contraseña de `postgres`. Escríbela (no se ve en pantalla, es normal).
+4. Espera: la carga tarda unos segundos. Al final ves una tabla con las 8 tablas y sus
+   conteos, y los tres totales de dinero.
+
+**Qué significa cada pedazo del comando** (para que no sea una receta mágica):
+
+| Pedazo | Qué es |
+|---|---|
+| `&` y las comillas | Ejecutar un programa cuya ruta tiene espacios. |
+| `psql.exe` | La herramienta de PostgreSQL que lee archivos y ejecuta SQL. |
+| `-U postgres` | El usuario con el que se conecta. |
+| `-d entregas` | La base de datos donde carga. |
+| `-W` | Pide la contraseña al ejecutar. No se guarda en ningún archivo. |
+| `-f 01_raw\03_cargar.sql` | El archivo que va a ejecutar. |
+
+> **Alternativa dentro de pgAdmin:** algunos pgAdmin traen **Tools → PSQL Tool**, una
+> consola de psql dentro de la misma ventana. Si la tienes, puedes usarla en lugar de
+> PowerShell; hace lo mismo.
+>
+> **No** intentes correr el paso 3 en Query Tool: `\copy` no es SQL y PostgreSQL
+> responderá con un error de sintaxis.
+
+---
+
+## 4. Cómo saber que salió bien
+
+Al final del paso 3, la pantalla muestra esto (los números son la verificación):
+
+| Tabla | Filas |
 |---|---:|
 | `clientes` | 99.441 |
 | `pedidos` | 99.441 |
@@ -215,53 +122,160 @@ ORDER BY 1;
 | `items_pedido` | 112.650 |
 | `pagos_pedido` | 103.886 |
 | `resenas` | 99.224 |
-| `SUM(precio)` | **13.591.643,70** |
-| `SUM(flete)` | 2.251.909,54 |
-| `SUM(precio + flete)` | 15.843.553,24 |
+| **Total** | **550.759** |
+
+| Total de dinero | Valor |
+|---|---:|
+| Suma de precios | **13.591.643,70** |
+| Suma de fletes | 2.251.909,54 |
+| Precio + flete | 15.843.553,24 |
+
+El propio archivo compara estos valores y **se detiene con un error si alguno no
+coincide**. Es preferible un error visible a un total equivocado que nadie nota.
+
+Para verlo por tu cuenta en pgAdmin, en Query Tool sobre `entregas`:
+
+```sql
+SELECT count(*) FROM olist.pedidos;          -- 99.441
+SELECT sum(precio) FROM olist.items_pedido;  -- 13.591.643,70
+```
 
 ---
 
-## 6. Cinco preguntas de entrevista (con respuesta)
+## 5. Las decisiones, explicadas sin jerga
+
+### 5.1 Una tabla por archivo, sin tocar los datos
+
+La capa `01_raw` es una copia fiel del origen. Si aquí se limpia o se corrige, se pierde
+la referencia contra la que se audita todo lo demás. La limpieza va en `02_staging`,
+donde queda escrita y justificada.
+
+### 5.2 Los nombres están en español
+
+`pedido_id`, `fecha_compra`, `precio`… Los CSV vienen en inglés (`order_id`,
+`order_purchase_timestamp`, `price`). La traducción se hace al cargar, columna por
+columna, sin renombrar los archivos originales.
+
+### 5.3 Los tipos de dato
+
+- **IDs como texto**: son cadenas de 32 caracteres sin guiones; no son un `uuid` válido.
+- **Dinero como `numeric(12,2)`**: guarda exactamente dos decimales. Con `float` (coma
+  flotante) las sumas de 112.650 precios se desvían centavos y el tablero no cuadra.
+- **Fechas sin zona horaria**: el archivo no dice en qué zona se registraron. Poner una
+  sería inventar; se usa `timestamp` tal cual.
+- **Peso y medidas como enteros**: gramos y centímetros, sin decimales.
+
+### 5.4 Las llaves
+
+Una **llave primaria** es la columna que no se repite, como una cédula. Una **llave
+foránea** es un candado entre tablas: impide guardar un ítem de un pedido que no existe.
+
+Hay tres tablas donde una sola columna no alcanza:
+
+| Tabla | Llave | Por qué |
+|---|---|---|
+| `items_pedido` | `(pedido_id, item_id)` | Un pedido tiene varios productos. |
+| `pagos_pedido` | `(pedido_id, pago_secuencial)` | Un pedido puede pagarse en varias partes. |
+| `resenas` | `(resena_id, pedido_id)` | El mismo `review_id` aparece en pedidos distintos. |
+
+### 5.5 Los vacíos son `NULL`, no cero
+
+`NULL` significa "no hay dato". Si un pedido no tiene fecha de entrega, no tardó 0 días:
+no se sabe cuánto tardó. Rellenarlo con 0 hundiría el promedio de días de tránsito.
+
+### 5.6 Las reglas que rechazan datos imposibles
+
+`CHECK` es una regla que PostgreSQL aplica al guardar: una calificación solo puede ir de
+1 a 5; un precio no puede ser negativo; un estado de pedido solo puede ser uno de los 8
+que existen. Si el archivo trae otra cosa, la carga falla y avisa.
+
+### 5.7 UTF-8, BOM y comillas
+
+- **UTF-8** es el formato que representa bien los acentos del portugués.
+- **BOM** es una marca invisible al inicio de un archivo. El de categorías la trae, y
+  PostgreSQL no la quita sola: se limpia con `replace(texto, chr(65279), '')`.
+- **Comillas**: los comentarios de las reseñas traen comas y saltos de línea dentro de
+  comillas. Por eso la carga es `FORMAT csv`: en texto plano, una reseña se partiría en
+  varias filas.
+
+---
+
+## 6. Las trampas del dataset (números medidos)
+
+| Trampa | Número | Qué se hizo |
+|---|---:|---|
+| Reseñas: líneas vs. filas | 104.720 líneas / **99.224 filas** | Se cuentan registros, no líneas |
+| Pedidos con 2 o 3 reseñas | 547 | Se deduplicará en staging |
+| `review_id` repetido en pedidos distintos | 789 | PK compuesta |
+| Pedidos sin fecha de entrega | 2.965 | `NULL`, no 0 |
+| … de esos, marcados `delivered` | 8 | Se documentan, no se imputan |
+| Pedidos sin ítems | 775 | No suman ingreso; se reportan |
+| Fuera del universo (`canceled`+`unavailable`) | 1.234 | Se excluyen del denominador |
+| Personas distintas (`cliente_unico_id`) | 96.096 | No confundir con 99.441 cuentas |
+| Productos sin categoría | 610 | `NULL`, se muestra "sin categoría" |
+| Productos sin peso / con peso 0 | 2 / 4 | Se excluyen del flete por kilo |
+| Categorías sin traducción | 2 | `COALESCE` con el nombre en portugués |
+| Pedidos con pago | 99.440 | 1 pedido sin fila de pago |
+| Suma de pagos | 16.008.872,12 | No coincide con ítems: mide otra cosa |
+
+**Pagos vs. ítems:** no es un error. El pago incluye flete y cupones, y puede venir en
+varias filas. Por eso **nunca se suman las dos tablas en la misma consulta**.
+
+---
+
+## 7. Qué se descartó y por qué
+
+1. **Geolocalización** (1.000.163 filas, 19.015 códigos postales). No cambia el análisis:
+   el SLA se mide por estado, y el estado ya está en `clientes`. Cargarla sumaría un
+   millón de filas sin aportar una sola conclusión.
+2. **Candado de `productos.categoria` a la traducción.** Fallaría: hay 73 categorías y
+   solo 71 traducciones. Se resuelve en staging con `COALESCE`.
+3. **Fechas con zona horaria.** La fuente no la trae; no se inventa.
+4. **`uuid` para los IDs.** Los valores no tienen ese formato.
+5. **Cargar todo como texto y convertir después.** Se pierde el aviso temprano de un
+   precio mal escrito o una fecha rara.
+6. **Tablas temporales para “CSV con más columnas que la tabla”.** Se midió: ninguno de
+   los 9 archivos trae más columnas que su tabla. La única temporal es la de categorías,
+   por el BOM.
+7. **`COPY` en modo texto.** Los saltos de línea dentro de comillas romperían la carga.
+
+---
+
+## 8. Cinco preguntas de entrevista (con respuesta)
 
 **1. “El archivo de reseñas tiene 104.719 líneas y 99.224 filas. ¿Por qué?”**
 Porque los comentarios vienen entre comillas y algunos incluyen saltos de línea: un
-registro ocupa varias líneas físicas. `wc -l` cuenta líneas, no registros. Se carga con
-`FORMAT csv` y se cuenta con un parser que respeta comillas; si se hubiera cargado como
-texto plano, se habrían partido reseñas.
+registro ocupa varias líneas físicas. `wc -l` cuenta líneas, no registros. Cargarlo como
+texto plano habría partido reseñas.
 
 **2. “¿Por qué `numeric` y no `float` para precios?”**
-Porque `float` es binario y no representa exactamente valores como 0,10: al sumar
-112.650 ítems el total se desvía. `numeric` es decimal exacto y el cuadre contra el
-tablero da al centavo.
+Porque `float` es binario y no representa exacto valores como 0,10; al sumar 112.650
+ítems el total se desvía. `numeric` es decimal exacto y el cuadre con el tablero da al
+centavo.
 
-**3. “¿Por qué la PK de ítems es compuesta?”**
+**3. “¿Por qué la llave de ítems es compuesta?”**
 Porque el grano es el ítem, no el pedido: un pedido tiene N ítems y `pedido_id` solo se
-repetiría. La pareja `(pedido_id, item_id)` identifica la fila. Consecuencia práctica:
-para contar pedidos se usa `COUNT(DISTINCT pedido_id)`, no `COUNT(*)`.
+repetiría. Para contar pedidos se usa `COUNT(DISTINCT pedido_id)`, no `COUNT(*)`.
 
-**4. “¿Por qué la PK de reseñas no es `review_id`?”**
-Porque 789 `review_id` aparecen en más de un pedido; la misma reseña se replicó. Y un
-pedido puede tener hasta 3 reseñas. La única combinación única es
-`(review_id, pedido_id)`. Para promediar satisfacción por pedido hay que deduplicar en
-staging, quedándose con la respuesta más reciente.
+**4. “¿Por qué la llave de reseñas no es `review_id`?”**
+Porque 789 `review_id` aparecen en más de un pedido, y un pedido puede tener hasta 3
+reseñas. La única combinación única es `(review_id, pedido_id)`. Para promediar
+satisfacción por pedido hay que deduplicar en staging.
 
 **5. “¿Por qué no cargaste la geolocalización?”**
 Porque no cambia el análisis: el SLA se mide por estado y el estado ya está en
-`clientes`. Son 1.000.163 filas y 19.015 CEP para una precisión que el tablero no usa.
-Cargarla habría inflado la base y la ingesta sin aportar una sola conclusión.
+`clientes`. Son 1.000.163 filas para una precisión que el tablero no usa.
 
 ---
 
-## 7. Limitaciones que quedan anotadas
+## 9. Limitaciones que quedan anotadas
 
 - **No hay transportista.** Olist no publica qué empresa repartió cada pedido. Cualquier
   columna de transportista sería derivada de la región; por eso el SLA se analiza por
   estado.
-- **8 pedidos `delivered` sin fecha de entrega.** No se pueden medir en días de tránsito;
-  se excluyen y se reporta el conteo.
-- **775 pedidos sin ítems.** Existen como pedido pero no tienen línea de detalle; no
-  suman ingreso.
+- **8 pedidos `delivered` sin fecha de entrega.** No se pueden medir en días de tránsito.
+- **775 pedidos sin ítems.** Existen como pedido, pero no tienen detalle que sume ingreso.
 - **Pagos ≠ ítems.** Miden cosas distintas; no se suman juntas.
 
-**Lo que sigue:** `02_staging` (tipado final, deduplicación de reseñas, traducción de
-categorías y bitácora de limpieza con estos mismos conteos).
+**Lo que sigue:** `02_staging` — convertir fechas a día, deduplicar reseñas, traducir
+categorías y dejar una bitácora con estos mismos conteos.

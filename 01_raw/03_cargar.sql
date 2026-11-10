@@ -1,38 +1,50 @@
--- =====================================================================
--- Proyecto 1 — Entregas y SLA (Olist)
--- Fase 01_raw · Script 02 de 02: carga de los CSV
+-- ============================================================
+-- PASO 3 de 3 · Cargar los datos de los CSV
+-- Proyecto: Entregas y SLA (datos de Olist)
+-- ============================================================
 --
--- Qué hace este script
---   1. Vacía las tablas (permite re-ejecutarlo sin recrear la base).
---   2. Carga los 8 CSV usados con \copy, en orden de dependencias.
---   3. Carga la traducción de categorías con una tabla temporal para
---      limpiar el BOM y validar el conteo antes de insertar.
---   4. Verifica conteos y la suma de precios; si algo no cuadra, aborta.
+-- QUÉ HACE
+--   Toma los 8 archivos CSV de la carpeta "entrada" y los mete,
+--   fila por fila, en las tablas creadas en el paso 2. Al final
+--   cuenta las filas y suma los precios: si algo no cuadra, se
+--   detiene y avisa.
 --
--- Cómo se corre (desde la raíz del repo, que es donde están las rutas):
---   & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d entregas -W -f 01_raw\02_cargar.sql
+-- DÓNDE SE EJECUTA
+--   En la base "entregas", con la herramienta psql. Es la única
+--   parte del proyecto que no se hace con clics en pgAdmin:
+--   pgAdmin le ordena al servidor, y el servidor de PostgreSQL
+--   corre con otra cuenta de Windows que no puede leer la carpeta
+--   "Documentos" de tu usuario. psql, en cambio, lee el archivo
+--   desde tu propia sesión. Por eso este paso usa psql.
 --
--- Los CSV NO están en Git: viven en 01_raw\entrada\ (ignorada).
--- =====================================================================
+-- QUÉ QUEDA DESPUÉS
+--   550.759 filas repartidas en las 8 tablas, con los conteos
+--   verificados.
+--
+-- NOTA: las rutas de los archivos son relativas a la carpeta del
+-- proyecto (la que contiene 01_raw). No son rutas absolutas.
+-- ============================================================
 
 \set ON_ERROR_STOP on
 SET client_encoding = 'UTF8';
 
-\echo '== 02_cargar | vaciando tablas =='
-
--- Se listan las 8 tablas en un solo TRUNCATE para que las FK no estorben.
+-- ------------------------------------------------------------
+-- Vaciar las tablas antes de cargar.
+-- Sirve para poder repetir este paso sin duplicar filas: si ya
+-- había datos, se borran y se vuelven a cargar desde cero.
+-- ------------------------------------------------------------
 TRUNCATE olist.clientes, olist.pedidos, olist.productos, olist.vendedores,
          olist.categoria_traduccion, olist.items_pedido, olist.pagos_pedido,
          olist.resenas;
 
--- ---------------------------------------------------------------------
--- Categorías: el archivo empieza con BOM (EF BB BF) y no trae encabezado
--- entre comillas. Se carga primero en una temporal SIN HEADER para que el
--- BOM caiga en un campo de texto y poder limpiarlo con chr(65279), en vez
--- de depender de cómo lo trate la versión de psql.
--- ---------------------------------------------------------------------
-\echo '== Cargando categorias (temporal + limpieza de BOM) =='
-
+-- ------------------------------------------------------------
+-- Categorías: el archivo empieza con una marca invisible llamada
+-- BOM. Esa marca se pega al primer nombre y lo vuelve distinto
+-- ("categoria" no es lo mismo que "BOM+categoria").
+-- Para poder limpiarla, primero se carga todo en una tabla
+-- temporal (un borrador que se borra al terminar), se quita la
+-- marca y recién ahí se guarda en la tabla buena.
+-- ------------------------------------------------------------
 CREATE TEMP TABLE tmp_categoria_traduccion (
     categoria    text,
     categoria_en text
@@ -40,6 +52,8 @@ CREATE TEMP TABLE tmp_categoria_traduccion (
 
 \copy tmp_categoria_traduccion FROM '01_raw/entrada/product_category_name_translation.csv' WITH (FORMAT csv, HEADER false, ENCODING 'UTF8')
 
+-- Se descarta la primera fila (es el título de las columnas) y se
+-- limpia la marca invisible antes de insertar.
 INSERT INTO olist.categoria_traduccion (categoria, categoria_en)
 SELECT replace(categoria, chr(65279), ''),
        categoria_en
@@ -48,41 +62,38 @@ SELECT replace(categoria, chr(65279), ''),
 
 DROP TABLE tmp_categoria_traduccion;
 
--- ---------------------------------------------------------------------
--- Orden de carga: primero las tablas sin FK, después las que dependen.
--- Cada \copy lleva la lista de columnas en el orden del CSV y HEADER true:
--- PostgreSQL descarta la primera línea, así que los nombres en inglés del
--- CSV no chocan con los nombres en español de la tabla.
--- ---------------------------------------------------------------------
-\echo '== Cargando clientes =='
+-- ------------------------------------------------------------
+-- Carga de las 7 tablas restantes.
+--
+-- El orden importa: primero los clientes, productos y vendedores;
+-- después los pedidos; al final ítems, pagos y reseñas. Es como
+-- armar un mueble: no se pueden atornillar las patas antes de
+-- tener la tabla.
+--
+-- Cada línea dice de qué archivo toma los datos, en qué tabla los
+-- guarda y en qué orden van las columnas. "HEADER true" significa
+-- "la primera línea del archivo son los títulos, sáltala".
+-- ------------------------------------------------------------
 \copy olist.clientes (cliente_id, cliente_unico_id, codigo_postal, ciudad, estado) FROM '01_raw/entrada/olist_customers_dataset.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
 
-\echo '== Cargando pedidos =='
 \copy olist.pedidos (pedido_id, cliente_id, estado_pedido, fecha_compra, fecha_aprobacion, fecha_entrega_transportista, fecha_entrega_cliente, fecha_estimada_entrega) FROM '01_raw/entrada/olist_orders_dataset.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
 
-\echo '== Cargando productos =='
 \copy olist.productos (producto_id, categoria, largo_nombre, largo_descripcion, fotos, peso_g, largo_cm, alto_cm, ancho_cm) FROM '01_raw/entrada/olist_products_dataset.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
 
-\echo '== Cargando vendedores =='
 \copy olist.vendedores (vendedor_id, codigo_postal, ciudad, estado) FROM '01_raw/entrada/olist_sellers_dataset.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
 
-\echo '== Cargando items de pedido =='
 \copy olist.items_pedido (pedido_id, item_id, producto_id, vendedor_id, fecha_limite_envio, precio, flete) FROM '01_raw/entrada/olist_order_items_dataset.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
 
-\echo '== Cargando pagos =='
 \copy olist.pagos_pedido (pedido_id, pago_secuencial, tipo_pago, cuotas, valor) FROM '01_raw/entrada/olist_order_payments_dataset.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
 
-\echo '== Cargando resenas =='
 \copy olist.resenas (resena_id, pedido_id, calificacion, titulo, comentario, fecha_creacion, fecha_respuesta) FROM '01_raw/entrada/olist_order_reviews_dataset.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
 
--- ---------------------------------------------------------------------
--- Verificación. Si un conteo o la suma no coinciden, el script falla y
--- no se sigue: es preferible un error ruidoso a un número silencioso.
--- Los valores están medidos sobre los archivos de 01_raw/entrada/
--- (ver docs/guia-fase-01.md).
--- ---------------------------------------------------------------------
-\echo '== Verificando conteos y suma de precios =='
-
+-- ------------------------------------------------------------
+-- Revisión final.
+-- Compara lo que llegó con lo que se midió en los archivos.
+-- Si un número no coincide, se detiene con un mensaje en rojo:
+-- es mejor un error visible que un total equivocado sin avisar.
+-- ------------------------------------------------------------
 DO $$
 DECLARE
     n integer;
@@ -112,13 +123,12 @@ BEGIN
     IF n <> 99224 THEN RAISE EXCEPTION 'resenas: se esperaban 99224 filas, hay %', n; END IF;
 
     IF (SELECT sum(precio) FROM olist.items_pedido) <> 13591643.70 THEN
-        RAISE EXCEPTION 'items_pedido: la suma de precio no es 13591643.70 (¿filas truncadas?)';
+        RAISE EXCEPTION 'items_pedido: la suma de precio no es 13591643.70 (¿se cortó alguna fila?)';
     END IF;
 END
 $$;
 
-\echo '== Carga terminada: conteos y suma de precios verificados =='
-
+-- Tabla resumen: una fila por tabla con su cantidad de registros.
 SELECT 'clientes'            AS tabla, count(*) AS filas FROM olist.clientes
 UNION ALL SELECT 'pedidos',              count(*) FROM olist.pedidos
 UNION ALL SELECT 'productos',            count(*) FROM olist.productos
@@ -129,7 +139,8 @@ UNION ALL SELECT 'pagos_pedido',         count(*) FROM olist.pagos_pedido
 UNION ALL SELECT 'resenas',              count(*) FROM olist.resenas
 ORDER BY 1;
 
-SELECT sum(precio)          AS suma_precio,
-       sum(flete)           AS suma_flete,
-       sum(precio + flete)  AS suma_precio_mas_flete
+-- Los tres totales de dinero que después se usan en el tablero.
+SELECT sum(precio)         AS suma_precio,
+       sum(flete)          AS suma_flete,
+       sum(precio + flete) AS suma_precio_mas_flete
   FROM olist.items_pedido;
