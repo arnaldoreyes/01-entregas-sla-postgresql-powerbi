@@ -112,6 +112,12 @@ Al hacer doble clic sobre una línea del diagrama se abre **Editar relación**. 
 Si una línea se ve **punteada**, está inactiva: se abre, se marca “Activa” y se acepta.
 Las 7 tienen que quedar como líneas **sólidas**.
 
+> **Si al marcarla activa Power BI da un error de ambigüedad**, es porque existe otra
+> relación que crea un camino alternativo (por ejemplo, una relación entre los dos
+> hechos, o una relación de más entre las mismas tablas). Se revisa la lista de
+> **Administrar relaciones**, se elimina la que sobra y se reintenta. Con las 7 de la
+> tabla no hay ambigüedad posible.
+
 ### 4.4 Distribución del diagrama
 
 En la vista **Modelo**, arrastrar las tablas hasta que queden así (las dimensiones
