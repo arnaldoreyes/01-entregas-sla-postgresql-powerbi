@@ -46,20 +46,25 @@ estos datos, y cuánto mejoraría el indicador?
 
 ## Modelo de datos
 
-Esquema estrella sobre PostgreSQL, con una tabla de hechos de ítems de pedido y
-dimensiones de cliente, producto, tiempo y estado.
+Esquema estrella sobre PostgreSQL: **dos tablas de hechos** que comparten las dimensiones
+de cliente, producto, tiempo y estado de entrega.
+
+- `modelo.hecho_pedidos` (99.441): un pedido por fila — OTIF, días de tránsito y
+  calificación.
+- `modelo.hecho_items` (112.650): un ítem por fila — precio, flete, ingreso y categoría.
 
 ```
-hecho_items_pedido  (order_id, order_item_id, product_id, seller_id,
-                     precio, flete, fecha_pedido, fecha_entrega, fecha_prometida)
-  ├── dim_cliente      (customer_id → estado, ciudad)
-  ├── dim_producto     (product_id → categoría)
-  ├── dim_tiempo       (fecha → año, mes, trimestre, día de semana, es_habil)
-  └── dim_estado_entrega (a_tiempo / tarde / sin_entrega)
+dim_cliente ─┬─ hecho_pedidos ─┬─ dim_tiempo
+             │                 └─ dim_estado_entrega
+             └─ hecho_items ───┴─ dim_producto
 ```
+
+Son dos hechos porque el ingreso vive en el ítem (un pedido puede tener varios productos)
+y el OTIF en el pedido (es uno por compra). Separados, cada indicador se mide en su grano
+correcto.
 
 El detalle de cada tabla, su clave y las trampas de cada campo está en
-[`docs/diccionario-datos.md`](docs/diccionario-datos.md) (se llena en la fase 2).
+[`docs/diccionario-datos.md`](docs/diccionario-datos.md).
 
 ## Pipeline
 
@@ -116,9 +121,12 @@ Requisitos: PostgreSQL 18 con pgAdmin 4, y los 9 CSV de Olist en `01_raw/entrada
 Pide la contraseña y carga los 8 CSV. Este paso usa `psql` porque pgAdmin no puede leer
 archivos de tu computador (el servidor corre con otra cuenta de Windows).
 
-Al terminar, el script verifica los 8 conteos y la suma de precios (13.591.643,70). Las
-fases 2 y 3 agregan `02_staging/`, `03_modeling/` y `05_validation/` con el mismo esquema
-de pasos.
+Al terminar, el script verifica los 8 conteos y la suma de precios (13.591.643,70).
+
+**Paso 4 — limpieza.** Query Tool sobre `entregas`: `02_staging/01_vistas.sql` y luego
+`02_staging/02_verificacion.sql`.
+
+**Paso 5 — modelo.** `03_modeling/01_estrella.sql` y `03_modeling/02_verificacion.sql`.
 
 Los hashes SHA-256 de los CSV están en [`01_raw/sources.md`](01_raw/sources.md).
 
