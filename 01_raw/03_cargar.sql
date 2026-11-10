@@ -1,4 +1,8 @@
 -- ============================================================
+-- ============================================================
+-- ATENCIÓN: este archivo NO se ejecuta en Query Tool.
+-- Se ejecuta con psql (ver "DÓNDE SE EJECUTA" más abajo).
+-- ============================================================
 -- PASO 2 de 2 · Cargar los datos de los CSV
 -- Proyecto: Entregas y SLA (datos de Olist)
 -- ============================================================
@@ -10,15 +14,14 @@
 --   detiene y avisa.
 --
 -- DÓNDE SE EJECUTA
---   Con doble clic en "cargar_datos.bat". Ese botón abre psql,
---   la herramienta que sí puede leer los archivos de tu
---   computador. pgAdmin no puede: le ordena al servidor, y el
---   servidor corre con otra cuenta de Windows que no tiene acceso
---   a tu carpeta de Documentos.
+--   Con psql: en pgAdmin está en Tools → PSQL Tool, y también sirve
+--   una terminal. Es la única parte que no se hace en Query Tool,
+--   porque Query Tool no entiende los comandos que empiezan con "\".
 --
---   Importante: NO ejecutar este archivo en Query Tool. Query
---   Tool no entiende los comandos que empiezan con "\" y devuelve
---   un error de sintaxis.
+--   ¿Por qué no en Query Tool? Porque los archivos están en tu
+--   carpeta de usuario y el servidor de PostgreSQL corre con otra
+--   cuenta de Windows (NetworkService) que no tiene permiso para
+--   leerla. psql los lee desde tu propia sesión.
 --
 -- QUÉ QUEDA DESPUÉS
 --   550.759 filas repartidas en las 8 tablas, con los conteos

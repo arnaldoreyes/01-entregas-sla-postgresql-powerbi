@@ -19,8 +19,8 @@
 --      abrir este archivo y pulsar F5.
 --
 -- QUÉ QUEDA DESPUÉS
---   8 tablas vacías. La carga de los datos es el paso 2: se hace
---   con el botón "cargar_datos.bat".
+--   8 tablas vacías. La carga de los datos es el paso 2: el
+--   archivo 03_cargar.sql.
 --
 -- TRES PALABRAS QUE APARECEN MUCHO
 --   Tabla        = una hoja de cálculo con filas y columnas.

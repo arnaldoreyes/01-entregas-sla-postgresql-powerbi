@@ -36,12 +36,19 @@ ya cargada.
 **2. Crear las tablas.** Clic derecho sobre `entregas` → **Query Tool**. Abrir
 `01_raw/02_crear_tablas.sql` y pulsar **F5**. Al final lista las 8 tablas (vacías).
 
-**3. Cargar los datos.** Doble clic en **`cargar_datos.bat`** (está en la carpeta del
-proyecto). Pide la contraseña de `postgres` y carga todo. Al final muestra la tabla de
-conteos.
+**3. Cargar los datos.** Una sola línea, en PowerShell abierto en la carpeta del
+proyecto:
 
-> El paso 3 no se hace en Query Tool: `\copy` es un comando de psql, no de SQL, y
-> pgAdmin responde con un error de sintaxis. El botón `.bat` abre psql por ti.
+```powershell
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d entregas -W -f 01_raw\03_cargar.sql
+```
+
+Pide la contraseña de `postgres` y carga los 8 CSV. Al final muestra la tabla de conteos.
+Es lo único que no se hace con clics: pgAdmin no puede leer archivos de tu computador
+(el servidor corre con otra cuenta de Windows), y `\copy` los lee desde tu sesión.
+
+> Si prefieres quedarte dentro de pgAdmin, está **Tools → PSQL Tool**; ahí se escribe
+> `\i 'C:/ruta/completa/01_raw/03_cargar.sql'` y hace lo mismo.
 
 ---
 

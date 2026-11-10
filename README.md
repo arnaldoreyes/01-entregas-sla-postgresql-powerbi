@@ -107,10 +107,14 @@ Requisitos: PostgreSQL 18 con pgAdmin 4, y los 9 CSV de Olist en `01_raw/entrada
 **Paso 2 — crear las tablas.** Clic derecho sobre `entregas` → **Query Tool** → ejecutar
 `01_raw/02_crear_tablas.sql`.
 
-**Paso 3 — cargar los datos.** Doble clic en **`cargar_datos.bat`**, en la carpeta del
-proyecto. Pide la contraseña de `postgres` y carga los 8 CSV. Ese paso usa `psql` porque
-pgAdmin no puede leer archivos de tu computador (el servidor corre con otra cuenta de
-Windows).
+**Paso 3 — cargar los datos.** Una línea en PowerShell, desde la carpeta del proyecto:
+
+```powershell
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d entregas -W -f 01_raw\03_cargar.sql
+```
+
+Pide la contraseña y carga los 8 CSV. Este paso usa `psql` porque pgAdmin no puede leer
+archivos de tu computador (el servidor corre con otra cuenta de Windows).
 
 Al terminar, el script verifica los 8 conteos y la suma de precios (13.591.643,70). Las
 fases 2 y 3 agregan `02_staging/`, `03_modeling/` y `05_validation/` con el mismo esquema
