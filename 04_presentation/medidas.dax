@@ -1,0 +1,162 @@
+-- ============================================================
+-- Medidas DAX — Proyecto 1 (Entregas y SLA)
+-- ============================================================
+--
+-- CÓMO SE USAN
+--   En Power BI: Inicio → Escribir datos, para crear una tabla
+--   vacía llamada "_Medidas". Ahí se pega cada medida con
+--   "Nueva medida". (Si prefieres, se pueden crear dentro de
+--   hecho_pedidos y hecho_items; el resultado es el mismo.)
+--
+-- ORDEN
+--   1. Pedidos y OTIF       → van en hecho_pedidos
+--   2. Días de tránsito     → van en hecho_pedidos
+--   3. Satisfacción         → van en hecho_pedidos
+--   4. Dinero y flete       → van en hecho_items
+--   5. Peso y costo por kg  → van en hecho_items
+-- ============================================================
+
+
+-- ------------------------------------------------------------
+-- 1. PEDIDOS Y OTIF
+-- ------------------------------------------------------------
+
+-- Cuenta pedidos. Sirve porque hecho_pedidos tiene una fila por
+-- pedido: contar filas es contar compras.
+Pedidos = COUNTROWS ( hecho_pedidos )
+
+-- Pedidos que entran al análisis: sin cancelados ni no disponibles.
+Pedidos universo =
+CALCULATE ( [Pedidos], hecho_pedidos[en_universo] = TRUE () )
+
+-- Pedidos con entrega confirmada.
+Pedidos entregados =
+CALCULATE ( [Pedidos], hecho_pedidos[entregado] = TRUE () )
+
+-- Entregados dentro de la fecha prometida.
+Pedidos a tiempo =
+CALCULATE ( [Pedidos], hecho_pedidos[estado_entrega_id] = 1 )
+
+-- Entregados después de la fecha prometida.
+Pedidos tarde =
+CALCULATE ( [Pedidos], hecho_pedidos[estado_entrega_id] = 2 )
+
+-- Pedidos que al corte no tenían entrega confirmada.
+Pedidos sin entrega =
+CALCULATE ( [Pedidos], hecho_pedidos[estado_entrega_id] = 3 )
+
+-- La medida del proyecto: a tiempo y completos sobre el universo.
+-- DIVIDE devuelve vacío en vez de error si el denominador es 0.
+OTIF % = DIVIDE ( [Pedidos a tiempo], [Pedidos universo] )
+
+-- Porcentaje de retraso entre los que sí se entregaron.
+% tarde = DIVIDE ( [Pedidos tarde], [Pedidos entregados] )
+
+-- Porcentaje del universo que no tiene entrega confirmada.
+% sin entrega = DIVIDE ( [Pedidos sin entrega], [Pedidos universo] )
+
+
+-- ------------------------------------------------------------
+-- 2. DÍAS DE TRÁNSITO
+-- ------------------------------------------------------------
+
+-- Mediana: el valor que deja la mitad de los pedidos a cada lado.
+-- Es mejor que el promedio cuando hay pedidos extremos (hasta 210 días).
+Días tránsito mediana = MEDIAN ( hecho_pedidos[dias_transito] )
+
+-- Percentil 90: el 10 % de los pedidos más lentos está por encima.
+Días tránsito p90 = PERCENTILE.INC ( hecho_pedidos[dias_transito], 0.9 )
+
+-- Promedio, solo para comparar con la mediana.
+Días tránsito promedio = AVERAGE ( hecho_pedidos[dias_transito] )
+
+-- Lo mismo, pero descontando fines de semana y feriados.
+Días hábiles mediana = MEDIAN ( hecho_pedidos[dias_habiles] )
+
+
+-- ------------------------------------------------------------
+-- 3. SATISFACCIÓN
+-- ------------------------------------------------------------
+
+-- Promedio de calificación sobre el universo (una reseña por pedido).
+Calificación promedio =
+CALCULATE (
+    AVERAGE ( hecho_pedidos[calificacion] ),
+    hecho_pedidos[en_universo] = TRUE ()
+)
+
+-- Promedio de los pedidos que llegaron a tiempo.
+Calificación a tiempo =
+CALCULATE ( [Calificación promedio], hecho_pedidos[estado_entrega_id] = 1 )
+
+-- Promedio de los pedidos que llegaron tarde.
+Calificación tarde =
+CALCULATE ( [Calificación promedio], hecho_pedidos[estado_entrega_id] = 2 )
+
+-- Cuánto baja la calificación cuando el pedido llega tarde.
+-- Se muestra en positivo (2,02 puntos) para que se lea fácil.
+Brecha calificación = [Calificación a tiempo] - [Calificación tarde]
+
+-- Qué proporción del universo tiene reseña.
+% con reseña =
+DIVIDE (
+    CALCULATE ( [Pedidos], NOT ISBLANK ( hecho_pedidos[calificacion] ) ),
+    [Pedidos universo]
+)
+
+
+-- ------------------------------------------------------------
+-- 4. DINERO Y FLETE
+-- ------------------------------------------------------------
+
+-- Ingreso: precio + flete, sumado en el grano del ítem.
+Ingreso = SUM ( hecho_items[ingreso] )
+
+-- Solo el precio del producto (sin flete). Ojo: este es el 13,59 M.
+Ingreso producto = SUM ( hecho_items[precio] )
+
+-- Costo de envío.
+Flete = SUM ( hecho_items[flete] )
+
+-- Pedidos que tienen al menos un ítem (98.666).
+Pedidos con ítems = DISTINCTCOUNT ( hecho_items[pedido_id] )
+
+-- Cuánto deja cada pedido en promedio.
+Ticket promedio = DIVIDE ( [Ingreso], [Pedidos con ítems] )
+
+-- Qué parte del ingreso se va en flete.
+Flete sobre ingreso = DIVIDE ( [Flete], [Ingreso] )
+
+-- Flete promedio por pedido.
+Flete por pedido = DIVIDE ( [Flete], [Pedidos con ítems] )
+
+
+-- ------------------------------------------------------------
+-- 5. PESO Y COSTO POR KG
+-- ------------------------------------------------------------
+
+-- Kilos totales, ignorando los 26 ítems con peso nulo o cero.
+Peso kg =
+SUMX (
+    FILTER (
+        hecho_items,
+        RELATED ( dim_producto[peso_invalido] ) = FALSE ()
+    ),
+    hecho_items[cantidad] * RELATED ( dim_producto[peso_g] ) / 1000
+)
+
+-- Flete de esos mismos ítems (para que el cociente sea comparable).
+Flete con peso válido =
+CALCULATE ( [Flete], dim_producto[peso_invalido] = FALSE () )
+
+-- Lo que cuesta mover un kilo.
+Costo por kg = DIVIDE ( [Flete con peso válido], [Peso kg] )
+
+-- Cantidad de ítems (cada fila de hecho_items vale 1).
+Ítems = SUM ( hecho_items[cantidad] )
+
+-- Peso promedio de un ítem, en kilos.
+Peso promedio por ítem = DIVIDE ( [Peso kg], [Ítems] )
+
+-- Flete promedio de un ítem, para el gráfico de dispersión.
+Flete promedio por ítem = DIVIDE ( [Flete con peso válido], [Ítems] )
