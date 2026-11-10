@@ -1,5 +1,5 @@
 -- ============================================================
--- PASO 2 de 3 · Crear las tablas dentro de la base
+-- PASO 1 de 2 · Crear la base y las tablas
 -- Proyecto: Entregas y SLA (datos de Olist)
 -- ============================================================
 --
@@ -9,11 +9,18 @@
 --   los muebles y las reglas de dónde va cada cosa.
 --
 -- DÓNDE SE EJECUTA
---   En pgAdmin, conectado a la base "entregas" (la que creaste en
---   el paso 1).
+--   En pgAdmin, en dos momentos:
+--
+--   a) Primero se crea la base (una sola vez):
+--      clic derecho en "Databases" → Create → Database…
+--      Nombre: entregas. En "Encoding" elige UTF8. Guardar.
+--
+--   b) Después, clic derecho sobre "entregas" → Query Tool,
+--      abrir este archivo y pulsar F5.
 --
 -- QUÉ QUEDA DESPUÉS
---   8 tablas vacías. La carga de datos es el paso 3.
+--   8 tablas vacías. La carga de los datos es el paso 2: se hace
+--   con el botón "cargar_datos.bat".
 --
 -- TRES PALABRAS QUE APARECEN MUCHO
 --   Tabla        = una hoja de cálculo con filas y columnas.
@@ -28,6 +35,23 @@
 -- Un "esquema" es una carpeta dentro de la base para agrupar las
 -- tablas del proyecto y no mezclarlas con las del sistema.
 -- Se borra si ya existía para que el paso se pueda repetir.
+
+-- Todo el archivo va dentro de una transacción: o se crean las 8
+-- tablas completas, o no se crea ninguna. Si algo falla a mitad de
+-- camino, PostgreSQL deshace todo y no queda un esquema a medias.
+BEGIN;
+
+-- Si la base se creó sin UTF8, los acentos del portugués se
+-- guardarían mal ("São Paulo" quedaría roto). Mejor detenerse aquí
+-- con un mensaje claro que descubrirlo tres fases después.
+DO $$
+BEGIN
+    IF current_setting('server_encoding') <> 'UTF8' THEN
+        RAISE EXCEPTION 'La base no esta en UTF8 (esta en %). Borrala en pgAdmin y creala otra vez eligiendo Encoding = UTF8.', current_setting('server_encoding');
+    END IF;
+END
+$$;
+
 DROP SCHEMA IF EXISTS olist CASCADE;
 CREATE SCHEMA olist;
 
@@ -251,3 +275,5 @@ SELECT table_name AS "tabla creada"
   FROM information_schema.tables
  WHERE table_schema = 'olist'
  ORDER BY table_name;
+
+COMMIT;

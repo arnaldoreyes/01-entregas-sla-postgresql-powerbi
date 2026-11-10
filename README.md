@@ -101,19 +101,16 @@ Otras limitaciones se documentan en [`docs/diccionario-datos.md`](docs/diccionar
 Requisitos: PostgreSQL 18 con pgAdmin 4, y los 9 CSV de Olist en `01_raw/entrada/`
 (no están en Git por tamaño: se descargan de Kaggle; ver `01_raw/sources.md`).
 
-**Paso 1 — crear la base.** En pgAdmin, conéctate al servidor y abre Query Tool sobre la
-base `postgres`. Ejecuta `01_raw/01_crear_base.sql`.
+**Paso 1 — crear la base.** En pgAdmin: clic derecho en **Databases** → **Create** →
+**Database…**. Nombre `entregas`, **Encoding** UTF8.
 
-**Paso 2 — crear las tablas.** Abre Query Tool sobre la base `entregas` (la que creó el
-paso 1) y ejecuta `01_raw/02_crear_tablas.sql`.
+**Paso 2 — crear las tablas.** Clic derecho sobre `entregas` → **Query Tool** → ejecutar
+`01_raw/02_crear_tablas.sql`.
 
-**Paso 3 — cargar los datos.** Este paso se hace con `psql`, no con pgAdmin: pgAdmin le
-ordena al servidor, y el servidor corre con una cuenta de Windows que no puede leer tus
-Documentos. `psql` sí lee el archivo desde tu sesión. Desde la carpeta del proyecto:
-
-```powershell
-& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d entregas -W -f 01_raw\03_cargar.sql
-```
+**Paso 3 — cargar los datos.** Doble clic en **`cargar_datos.bat`**, en la carpeta del
+proyecto. Pide la contraseña de `postgres` y carga los 8 CSV. Ese paso usa `psql` porque
+pgAdmin no puede leer archivos de tu computador (el servidor corre con otra cuenta de
+Windows).
 
 Al terminar, el script verifica los 8 conteos y la suma de precios (13.591.643,70). Las
 fases 2 y 3 agregan `02_staging/`, `03_modeling/` y `05_validation/` con el mismo esquema

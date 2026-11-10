@@ -1,5 +1,5 @@
 -- ============================================================
--- PASO 3 de 3 · Cargar los datos de los CSV
+-- PASO 2 de 2 · Cargar los datos de los CSV
 -- Proyecto: Entregas y SLA (datos de Olist)
 -- ============================================================
 --
@@ -10,12 +10,15 @@
 --   detiene y avisa.
 --
 -- DÓNDE SE EJECUTA
---   En la base "entregas", con la herramienta psql. Es la única
---   parte del proyecto que no se hace con clics en pgAdmin:
---   pgAdmin le ordena al servidor, y el servidor de PostgreSQL
---   corre con otra cuenta de Windows que no puede leer la carpeta
---   "Documentos" de tu usuario. psql, en cambio, lee el archivo
---   desde tu propia sesión. Por eso este paso usa psql.
+--   Con doble clic en "cargar_datos.bat". Ese botón abre psql,
+--   la herramienta que sí puede leer los archivos de tu
+--   computador. pgAdmin no puede: le ordena al servidor, y el
+--   servidor corre con otra cuenta de Windows que no tiene acceso
+--   a tu carpeta de Documentos.
+--
+--   Importante: NO ejecutar este archivo en Query Tool. Query
+--   Tool no entiende los comandos que empiezan con "\" y devuelve
+--   un error de sintaxis.
 --
 -- QUÉ QUEDA DESPUÉS
 --   550.759 filas repartidas en las 8 tablas, con los conteos
@@ -27,6 +30,11 @@
 
 \set ON_ERROR_STOP on
 SET client_encoding = 'UTF8';
+
+-- Toda la carga va en una sola transacción: si un archivo falla a
+-- mitad de camino, se deshace todo y la base queda como estaba.
+-- Así no quedan 5 tablas cargadas y 3 vacías sin que nadie lo note.
+BEGIN;
 
 -- ------------------------------------------------------------
 -- Vaciar las tablas antes de cargar.
@@ -144,3 +152,5 @@ SELECT sum(precio)         AS suma_precio,
        sum(flete)          AS suma_flete,
        sum(precio + flete) AS suma_precio_mas_flete
   FROM olist.items_pedido;
+
+COMMIT;
