@@ -14,7 +14,8 @@
 --   el "Medida = " que trae Power BI: se reemplaza toda la línea.
 --
 --   TODAS las medidas van en una tabla aparte llamada "_Medidas"
---   (Inicio → Escribir datos), fuera del diagrama estrella. Así no
+--   (Inicio → Introducir datos; en algunas versiones aparece como
+--   "Escribir datos"), fuera del diagrama estrella. Así no
 --   se mezclan con las columnas y los nombres "Ingreso" y "Flete"
 --   no chocan con las columnas de hecho_items.
 --

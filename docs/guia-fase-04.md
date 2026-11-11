@@ -172,10 +172,12 @@ Están todas en [`04_presentation/medidas.dax`](../04_presentation/medidas.dax),
 comentario de qué hace cada una. Son **26 medidas**, todas en una tabla aparte llamada
 `_Medidas`:
 
-1. **Crear la tabla:** Inicio → **Escribir datos** → nombre `_Medidas`, una columna
-   `Lugar` con un guion en la primera fila. Crear. Esa tabla no se relaciona con nada:
-   queda fuera del diagrama estrella.
-2. **Ocultar la columna** `Lugar`: clic derecho → Ocultar en vista de informe.
+1. **Crear la tabla:** Inicio → **Introducir datos** (en algunas versiones aparece como
+   “Escribir datos”) → nombre `_Medidas`, una columna `Lugar` con un guion en la primera
+   fila. Crear. Esa tabla no se relaciona con nada: queda fuera del diagrama estrella.
+2. **Ocultar la columna** `Lugar`: clic derecho → Ocultar en vista de informe. No
+   conviene borrarla: si es la única columna de la tabla, Power BI puede eliminar la
+   tabla y con ella las medidas.
 3. **Crear cada medida** con clic derecho sobre `_Medidas` → **Nueva medida**.
 4. En la barra de fórmula se escribe **la línea completa**, con el nombre y el igual, y
    se pulsa Enter:
