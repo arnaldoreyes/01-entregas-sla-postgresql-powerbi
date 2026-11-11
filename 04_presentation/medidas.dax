@@ -4,7 +4,7 @@
 --
 -- FORMATOS (se aplican a cada medida al crearla)
 --   Dinero (Ingreso, Flete, Ticket promedio, Flete por pedido,
---   Costo por kg): Moneda R$, 2 decimales.
+--   Costo por kg): Formato Moneda, símbolo $, 2 decimales.
 --   Porcentajes (OTIF %, % tarde): Porcentaje, 2 decimales.
 --   Días (medianas, p90): número entero; el título del visual
 --   dice "días".
