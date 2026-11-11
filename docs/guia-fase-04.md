@@ -185,9 +185,9 @@ comentario de qué hace cada una. Son **26 medidas**, todas en una tabla aparte 
 1. **Crear la tabla:** Inicio → **Introducir datos** (en algunas versiones aparece como
    “Escribir datos”) → nombre `_Medidas`, una columna `Lugar` con un guion en la primera
    fila. Crear. Esa tabla no se relaciona con nada: queda fuera del diagrama estrella.
-2. **Ocultar la columna** `Lugar`: clic derecho → Ocultar en vista de informe. No
-   conviene borrarla: si es la única columna de la tabla, Power BI puede eliminar la
-   tabla y con ella las medidas.
+2. **Borrar la columna** `Lugar`: en esta versión Power BI deja la tabla como **tabla de
+   medidas** (con un ícono distinto al de tabla) y las medidas se conservan. Si en otra
+   versión la tabla desapareciera, basta con ocultar la columna.
 3. **Crear cada medida** con clic derecho sobre `_Medidas` → **Nueva medida**.
 4. En la barra de fórmula se escribe **la línea completa**, con el nombre y el igual, y
    se pulsa Enter:
