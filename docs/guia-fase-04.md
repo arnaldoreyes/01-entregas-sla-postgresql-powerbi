@@ -211,7 +211,9 @@ Las medidas que sostienen el tablero:
 - **6 tarjetas:** `OTIF %` (91,58 %), `Pedidos` (99.441), `Pedidos universo` (98.207),
   `Ingreso` (15.843.553,24), `Ticket promedio` (160,58), `% tarde` (6,77 %).
 - **Gráfico de líneas:** eje `dim_tiempo[anio_mes]`, valor `OTIF %`. Muestra la evolución
-  mes a mes.
+  mes a mes. Para limitarlo a 2017-01 … 2018-08 se filtra por `dim_tiempo[fecha]` (tipo
+  fecha, admite “posterior o igual”); `anio_mes` es texto y solo permite comparaciones de
+  texto.
 - **Barras horizontales:** eje `dim_cliente[estado]`, valor `OTIF %`; agregar
   `Pedidos universo` como información sobre herramientas. Ordenar de menor a mayor: los
   estados con peor OTIF quedan arriba.
