@@ -48,10 +48,20 @@ revisar, no para el modelo).
 5. En el navegador, abre el esquema **modelo** y marca las 6 tablas.
 6. **Transformar datos** y revisa los tipos:
    - `fecha` y `fecha_compra` → **Fecha**.
-   - `precio`, `flete`, `ingreso`, `ingreso_pedido`, `flete_pedido` → **Número decimal**.
+   - `precio`, `flete`, `ingreso`, `ingreso_pedido`, `flete_pedido` → **Número decimal fijo**.
+     Es el tipo para dinero: guarda decimales exactos y no arrastra errores de redondeo
+     como el “número decimal” (que es coma flotante).
    - Los `*_id` → **Texto**.
    - `calificacion`, `dias_*`, `n_items` → **Número entero**.
 7. **Cerrar y aplicar**.
+8. **Formato de moneda.** En la vista de datos, selecciona cada columna de dinero
+   (`precio`, `flete`, `ingreso`, `ingreso_pedido`, `flete_pedido`), abre **Formato** y
+   elige **Moneda**, símbolo **R$ (BRL)** y 2 decimales. El tipo da la precisión; el
+   formato da la unidad que ve el lector.
+
+> **Regla de unidades:** ningún número del tablero se muestra “pelado”. El dinero va en
+> R$, los porcentajes con %, los días con “días” y los pedidos con “pedidos”. Un 15,8 M
+> sin moneda obliga al lector a adivinar si son reales, dólares o unidades.
 
 > **Nombres de tabla:** el conector de PostgreSQL puede importar las tablas con el
 > esquema delante (`modelo hecho_pedidos`, con un espacio). Las medidas de esta guía usan

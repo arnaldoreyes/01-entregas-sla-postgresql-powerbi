@@ -2,6 +2,17 @@
 -- Medidas DAX — Proyecto 1 (Entregas y SLA)
 -- ============================================================
 --
+-- FORMATOS (se aplican a cada medida al crearla)
+--   Dinero (Ingreso, Flete, Ticket promedio, Flete por pedido,
+--   Costo por kg): Moneda R$, 2 decimales.
+--   Porcentajes (OTIF %, % tarde): Porcentaje, 2 decimales.
+--   Días (medianas, p90): número entero; el título del visual
+--   dice "días".
+--   Conteos (Pedidos, Pedidos universo…): número entero; el
+--   título del visual dice "pedidos".
+--
+--   Ningún número va sin unidad: R$, %, días o pedidos.
+--
 -- CÓMO SE USAN
 --   En Power BI, panel "Datos" (a la derecha), clic derecho sobre
 --   la tabla que indica cada grupo → "Nueva medida". En la barra
