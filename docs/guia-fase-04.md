@@ -53,6 +53,12 @@ revisar, no para el modelo).
    - `calificacion`, `dias_*`, `n_items` → **Número entero**.
 7. **Cerrar y aplicar**.
 
+> **Nombres de tabla:** el conector de PostgreSQL puede importar las tablas con el
+> esquema delante (`modelo hecho_pedidos`, con un espacio). Las medidas de esta guía usan
+> el nombre limpio (`hecho_pedidos`). Antes de crear medidas, renombra las 6 tablas en el
+> panel Datos: clic derecho → **Cambiar nombre**, y quita el prefijo `modelo `. Las
+> relaciones se conservan.
+
 > **Si Power BI se queja de Npgsql:** significa que le falta el conector de PostgreSQL.
 > Se instala una vez (Npgsql 4.1.9, x64) y se reinicia Power BI. Es un problema del
 > conector, no de la base.
@@ -163,10 +169,19 @@ panel de campos quede limpio.
 ## 5. Las medidas
 
 Están todas en [`04_presentation/medidas.dax`](../04_presentation/medidas.dax), con
-comentario de qué hace cada una. Se pegan con **Nueva medida**.
+comentario de qué hace cada una. Se crean así:
 
-Sugerencia: crear una tabla vacía `_Medidas` (Inicio → Escribir datos) y poner ahí todas
-las medidas, para que no queden mezcladas con las columnas.
+1. Clic derecho sobre la tabla de hechos → **Nueva medida**.
+2. En la barra de fórmula se escribe **la línea completa**, con el nombre y el igual, y
+   se pulsa Enter:
+   ```
+   Pedidos = COUNTROWS ( hecho_pedidos )
+   ```
+3. El nombre de la medida es lo que va antes del `=`. Si Power BI muestra `Medida =`,
+   se reemplaza toda la línea, no solo lo que está después del igual.
+
+Las medidas de pedidos y satisfacción van en `hecho_pedidos`; las de dinero y peso, en
+`hecho_items`.
 
 Las medidas que sostienen el tablero:
 

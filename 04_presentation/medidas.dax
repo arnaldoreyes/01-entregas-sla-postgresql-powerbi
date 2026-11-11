@@ -4,9 +4,14 @@
 --
 -- CÓMO SE USAN
 --   En Power BI, panel "Datos" (a la derecha), clic derecho sobre
---   la tabla que indica cada grupo → "Nueva medida". En el campo
---   "Nombre" va el nombre de la medida; en la fórmula va solo lo
---   que está después del "=".
+--   la tabla que indica cada grupo → "Nueva medida". En la barra
+--   de fórmula se escribe la línea COMPLETA, con el nombre y el
+--   igual, y se pulsa Enter:
+--
+--       Pedidos = COUNTROWS ( hecho_pedidos )
+--
+--   El nombre de la medida es lo que va antes del "=". No se deja
+--   el "Medida = " que trae Power BI: se reemplaza toda la línea.
 --
 --   Las medidas de pedidos y satisfacción se crean dentro de
 --   hecho_pedidos. Las de dinero y peso, dentro de hecho_items.
