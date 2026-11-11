@@ -169,19 +169,24 @@ panel de campos quede limpio.
 ## 5. Las medidas
 
 Están todas en [`04_presentation/medidas.dax`](../04_presentation/medidas.dax), con
-comentario de qué hace cada una. Se crean así:
+comentario de qué hace cada una. Son **26 medidas**, todas en una tabla aparte llamada
+`_Medidas`:
 
-1. Clic derecho sobre la tabla de hechos → **Nueva medida**.
-2. En la barra de fórmula se escribe **la línea completa**, con el nombre y el igual, y
+1. **Crear la tabla:** Inicio → **Escribir datos** → nombre `_Medidas`, una columna
+   `Lugar` con un guion en la primera fila. Crear. Esa tabla no se relaciona con nada:
+   queda fuera del diagrama estrella.
+2. **Ocultar la columna** `Lugar`: clic derecho → Ocultar en vista de informe.
+3. **Crear cada medida** con clic derecho sobre `_Medidas` → **Nueva medida**.
+4. En la barra de fórmula se escribe **la línea completa**, con el nombre y el igual, y
    se pulsa Enter:
    ```
    Pedidos = COUNTROWS ( hecho_pedidos )
    ```
-3. El nombre de la medida es lo que va antes del `=`. Si Power BI muestra `Medida =`,
+5. El nombre de la medida es lo que va antes del `=`. Si Power BI muestra `Medida =`,
    se reemplaza toda la línea, no solo lo que está después del igual.
 
-Las medidas de pedidos y satisfacción van en `hecho_pedidos`; las de dinero y peso, en
-`hecho_items`.
+Así las medidas no se mezclan con las columnas de los hechos y nombres como `Ingreso` o
+`Flete` no chocan con las columnas de `hecho_items`.
 
 Las medidas que sostienen el tablero:
 

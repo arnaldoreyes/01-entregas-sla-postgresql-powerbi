@@ -13,8 +13,10 @@
 --   El nombre de la medida es lo que va antes del "=". No se deja
 --   el "Medida = " que trae Power BI: se reemplaza toda la línea.
 --
---   Las medidas de pedidos y satisfacción se crean dentro de
---   hecho_pedidos. Las de dinero y peso, dentro de hecho_items.
+--   TODAS las medidas van en una tabla aparte llamada "_Medidas"
+--   (Inicio → Escribir datos), fuera del diagrama estrella. Así no
+--   se mezclan con las columnas y los nombres "Ingreso" y "Flete"
+--   no chocan con las columnas de hecho_items.
 --
 -- ORDEN
 --   1. Pedidos y OTIF       → van en hecho_pedidos
@@ -50,8 +52,7 @@ Pedidos tarde =
 CALCULATE ( [Pedidos], hecho_pedidos[estado_entrega_id] = 2 )
 
 -- Pedidos que al corte no tenían entrega confirmada.
-Pedidos sin entrega =
-CALCULATE ( [Pedidos], hecho_pedidos[estado_entrega_id] = 3 )
+-- (No se usa en las páginas; se deja fuera para no cargar el modelo.)
 
 -- La medida del proyecto: a tiempo y completos sobre el universo.
 -- DIVIDE devuelve vacío en vez de error si el denominador es 0.
@@ -59,9 +60,6 @@ OTIF % = DIVIDE ( [Pedidos a tiempo], [Pedidos universo] )
 
 -- Porcentaje de retraso entre los que sí se entregaron.
 % tarde = DIVIDE ( [Pedidos tarde], [Pedidos entregados] )
-
--- Porcentaje del universo que no tiene entrega confirmada.
-% sin entrega = DIVIDE ( [Pedidos sin entrega], [Pedidos universo] )
 
 
 -- ------------------------------------------------------------
@@ -74,9 +72,6 @@ Días tránsito mediana = MEDIAN ( hecho_pedidos[dias_transito] )
 
 -- Percentil 90: el 10 % de los pedidos más lentos está por encima.
 Días tránsito p90 = PERCENTILE.INC ( hecho_pedidos[dias_transito], 0.9 )
-
--- Promedio, solo para comparar con la mediana.
-Días tránsito promedio = AVERAGE ( hecho_pedidos[dias_transito] )
 
 -- Lo mismo, pero descontando fines de semana y feriados.
 Días hábiles mediana = MEDIAN ( hecho_pedidos[dias_habiles] )
@@ -105,13 +100,6 @@ CALCULATE ( [Calificación promedio], hecho_pedidos[estado_entrega_id] = 2 )
 -- Se muestra en positivo (2,02 puntos) para que se lea fácil.
 Brecha calificación = [Calificación a tiempo] - [Calificación tarde]
 
--- Qué proporción del universo tiene reseña.
-% con reseña =
-DIVIDE (
-    CALCULATE ( [Pedidos], NOT ISBLANK ( hecho_pedidos[calificacion] ) ),
-    [Pedidos universo]
-)
-
 
 -- ------------------------------------------------------------
 -- 4. DINERO Y FLETE
@@ -119,9 +107,6 @@ DIVIDE (
 
 -- Ingreso: precio + flete, sumado en el grano del ítem.
 Ingreso = SUM ( hecho_items[ingreso] )
-
--- Solo el precio del producto (sin flete). Ojo: este es el 13,59 M.
-Ingreso producto = SUM ( hecho_items[precio] )
 
 -- Costo de envío.
 Flete = SUM ( hecho_items[flete] )
