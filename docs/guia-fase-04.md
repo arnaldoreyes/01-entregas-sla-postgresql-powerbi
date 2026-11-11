@@ -178,6 +178,15 @@ panel de campos quede limpio.
 
 ## 5. Las medidas
 
+Antes de los visuales, crear la columna de mes como fecha (el eje de tiempo no va sobre
+texto):
+
+```
+fecha_mes = DATE ( dim_tiempo[anio], dim_tiempo[mes], 1 )
+```
+
+Formato: fecha, `mmm yyyy`. Se llama `fecha_mes` porque `mes` ya es el número del mes.
+
 Están todas en [`04_presentation/medidas.dax`](../04_presentation/medidas.dax), con
 comentario de qué hace cada una. Son **26 medidas**, todas en una tabla aparte llamada
 `_Medidas`:
@@ -220,10 +229,10 @@ Las medidas que sostienen el tablero:
 
 - **6 tarjetas:** `OTIF %` (91,58 %), `Pedidos` (99.441), `Pedidos universo` (98.207),
   `Ingreso` (15.843.553,24), `Ticket promedio` (160,58), `% tarde` (6,77 %).
-- **Gráfico de líneas:** eje `dim_tiempo[anio_mes]`, valor `OTIF %`. Muestra la evolución
-  mes a mes. Para limitarlo a 2017-01 … 2018-08 se filtra por `dim_tiempo[fecha]` (tipo
-  fecha, admite “posterior o igual”); `anio_mes` es texto y solo permite comparaciones de
-  texto.
+- **Gráfico de líneas:** eje `dim_tiempo[fecha_mes]` (columna calculada: primer día del
+  mes, tipo fecha), valor `OTIF %`. Muestra la evolución mes a mes. Para limitarlo a
+  2017-01 … 2018-08 se filtra por `dim_tiempo[fecha]` (tipo fecha, admite “posterior o
+  igual”); `anio_mes` es texto y solo permite comparaciones de texto.
 - **Barras horizontales:** eje `dim_cliente[estado]`, valor `OTIF %`; agregar
   `Pedidos universo` como información sobre herramientas. Ordenar de menor a mayor: los
   estados con peor OTIF quedan arriba.
