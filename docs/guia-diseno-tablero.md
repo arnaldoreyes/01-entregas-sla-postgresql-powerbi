@@ -60,7 +60,9 @@ Subtítulo: 91,58 % a tiempo · SP y RJ concentran la mitad · cuesta 2 puntos
    - Subtítulo — 15 pt, #8AA2C0.
 4. **Tarjetas.** Visual Tarjeta, 288×112, una por KPI. Formato → Efectos → Fondo
    #0F243E, radio 12, borde desactivado. Etiqueta 10 pt mayúsculas #8AA2C0; valor 28–30.
-   Icono: Insertar → Imagen → `assets/icono-otif.png`, 40×40, esquina superior derecha.
+   Icono: Insertar → Imagen → `assets/icono-*.png`, **58×58**, esquina superior derecha.
+   Cada icono es un badge circular con glifo relleno: `icono-otif` (escudo),
+   `icono-retraso` (alerta), `icono-tasa` (medidor), `icono-reloj`, `icono-dinero`.
 5. **Gráfico principal.** Gráfico de áreas (no de líneas): eje `dim_tiempo[fecha_mes]`,
    valor `OTIF %`. Línea #38BDF8 de 3 px; relleno #14395E. Eje Y desde 76 hasta 100.
    Panel Análisis → Línea constante en 0.9158, gris.
