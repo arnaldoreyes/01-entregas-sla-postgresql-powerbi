@@ -21,7 +21,24 @@ Assets listos en `04_presentation/assets/` (fondo e iconos).
 | Advertencia | #FBBF24 (ámbar) |
 | Texto | #E8F2FF |
 | Texto secundario | #8AA2C0 |
-| Tipografía | Segoe UI. Título 36–38 bold · subtítulo 15 · etiqueta 10 bold mayúsculas · valor 30 bold · lectura 11–14 |
+
+### Escala tipográfica única (igual en las tres páginas)
+
+| Elemento | Tamaño | Peso | Color |
+|---|---:|---|---|
+| Kicker de página | 11 | Negrita | #38BDF8 |
+| Título de página | 36 | Negrita | #E8F2FF |
+| Subtítulo de página | 15 | Normal | #8AA2C0 |
+| Etiqueta de tarjeta | 12 | Normal | #8AA2C0 |
+| Valor de tarjeta | 36 | Negrita | #E8F2FF |
+| Kicker de panel | 10 | Negrita | #8AA2C0 |
+| Título de panel | 13 | Negrita | #E8F2FF |
+| Titular de conclusión | 14 | Negrita | #E8F2FF |
+| Lectura | 11 | Normal | #8AA2C0 |
+| Número de conclusión | 18 | Negrita | #38BDF8 |
+
+No se cambia ningún tamaño de una página a otra. Si un elemento no está en la
+tabla, se agrega aquí antes de usarlo.
 
 Reglas:
 
